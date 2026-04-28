@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EU SABO!!!</title>
+    <title>EU SABO!!</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
@@ -16,81 +16,90 @@
         body { margin: 0; font-family: 'Arial Black', sans-serif; background: var(--bg); color: white; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         .screen { display: none; flex-direction: column; align-items: center; width: 95%; max-width: 550px; background: var(--card); padding: 25px; border-radius: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); text-align: center; max-height: 90vh; overflow-y: auto; }
         .active { display: flex; }
-        h1 { font-size: 2.5rem; color: var(--primary); text-shadow: 3px 3px 0 var(--secondary); }
+        h1 { font-size: 2.5rem; color: var(--primary); text-shadow: 3px 3px 0 var(--secondary); margin-bottom: 20px; }
         button { padding: 12px; font-size: 1rem; font-weight: bold; cursor: pointer; border: none; border-radius: 12px; transition: 0.2s; text-transform: uppercase; width: 100%; margin-bottom: 10px; }
         .btn-main { background: var(--primary); color: #000; }
         .btn-ia { background: #6e45e2; color: white; }
-        .btn-choice { background: #444; color: white; text-align: left; font-size: 0.8rem; font-family: 'Arial', sans-serif; }
+        .btn-choice { background: #444; color: white; text-align: left; font-size: 0.85rem; font-family: 'Arial', sans-serif; line-height: 1.2; padding: 15px; }
         .btn-choice:hover { background: var(--primary); color: #000; }
-        input { padding: 15px; margin: 10px 0; border-radius: 12px; border: 3px solid #444; background: #111; color: white; width: 100%; text-align: center; font-size: 1.2rem; box-sizing: border-box; }
-        #turn-banner { width: 100%; padding: 10px; border-radius: 10px; margin-bottom: 15px; font-weight: bold; color: #000; }
+        input { padding: 15px; margin: 10px 0; border-radius: 12px; border: 3px solid #444; background: #111; color: white; width: 100%; text-align: center; font-size: 1.1rem; box-sizing: border-box; }
+        #turn-banner { width: 100%; padding: 12px; border-radius: 10px; margin-bottom: 15px; font-weight: bold; color: #000; transition: 0.3s; }
         .your-turn { background: var(--success); }
         .others-turn { background: var(--primary); }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100; justify-content: center; align-items: center; }
-        .reveal-card { background: var(--card); border: 4px solid var(--primary); padding: 25px; border-radius: 25px; width: 80%; }
-        .loading-ia { color: var(--primary); font-style: italic; margin: 10px 0; display: none; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 100; justify-content: center; align-items: center; }
+        .reveal-card { background: var(--card); border: 4px solid var(--primary); padding: 25px; border-radius: 25px; width: 85%; max-width: 400px; text-align: center; }
+        .loading-ia { color: var(--primary); font-style: italic; margin: 10px 0; display: none; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+        #placar { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 20px; }
+        .placar-item { background: #111; padding: 5px 12px; border-radius: 15px; border: 1px solid #444; font-size: 0.8rem; }
     </style>
 </head>
 <body>
 
     <div id="modal-result" class="modal">
         <div class="reveal-card">
-            <h2 id="res-status">ANALISANDO...</h2>
-            <p>Resposta do Jogador: <br><b id="res-p-ans"></b></p>
-            <p>Resposta Correta: <br><b id="res-real-ans" style="color: var(--primary)"></b></p>
-            <p id="res-curiosidade" style="font-size: 0.8rem; background: #111; padding: 10px; border-radius: 10px;"></p>
-            <button class="btn-main" onclick="closeModal()">OK, PRÓXIMO!</button>
+            <h2 id="res-status" style="margin-top:0">...</h2>
+            <p style="font-size: 0.9rem; color: #aaa;">Sua resposta:</p>
+            <b id="res-p-ans" style="display:block; margin-bottom: 15px;"></b>
+            <p style="font-size: 0.9rem; color: #aaa;">Resposta correta:</p>
+            <b id="res-real-ans" style="color: var(--primary); display:block; margin-bottom: 15px;"></b>
+            <p id="res-curiosidade" style="font-size: 0.8rem; background: #000; padding: 15px; border-radius: 10px; font-style: italic;"></p>
+            <button class="btn-main" onclick="closeModal()" style="margin-top: 20px;">ENTENDI</button>
         </div>
     </div>
 
     <div id="screen-menu" class="screen active">
-        <h1>EU SABO!<span style="font-size: 0.8rem; display: block;">(IA EDITION)</span></h1>
-        <input type="password" id="api-key" placeholder="Cole sua API KEY do Gemini aqui">
+        <h1>EU SABO!<span style="font-size: 0.8rem; display: block; color: white;">IA EDITION 🦆</span></h1>
+        <input type="password" id="api-key" placeholder="API KEY do Gemini">
         <button class="btn-main" onclick="goTo('screen-create')">CRIAR SALA</button>
         <button class="btn-main" onclick="goTo('screen-join')">ENTRAR NA SALA</button>
     </div>
 
     <div id="screen-create" class="screen">
-        <h2>CRIAR</h2>
+        <h2>CRIAR SALA</h2>
         <input type="text" id="create-nick" placeholder="Seu Apelido">
+        <p style="font-size: 0.8rem;">Selecione o arquivo de perguntas (.txt):</p>
         <input type="file" id="cards-file" accept=".txt">
         <button class="btn-main" onclick="logicCreateRoom()">GERAR SALA</button>
+        <button onclick="goTo('screen-menu')" style="background:none; color: gray;">VOLTAR</button>
     </div>
 
     <div id="screen-join" class="screen">
         <h2>ENTRAR</h2>
         <input type="text" id="join-nick" placeholder="Seu Apelido">
-        <input type="text" id="join-code" placeholder="Código">
+        <input type="text" id="join-code" placeholder="Código da Sala">
         <button class="btn-main" onclick="logicJoinRoom()">ENTRAR</button>
+        <button onclick="goTo('screen-menu')" style="background:none; color: gray;">VOLTAR</button>
     </div>
 
     <div id="screen-lobby" class="screen">
         <h2>LOBBY</h2>
-        <p>CÓDIGO: <b id="lobby-room-code" style="color:var(--primary);">---</b></p>
-        <div id="player-list-lobby"></div>
-        <button id="start-btn" class="btn-main" style="display:none" onclick="hostStart()">COMEÇAR</button>
+        <p>CÓDIGO: <b id="lobby-room-code" style="color:var(--primary); font-size: 1.5rem;">---</b></p>
+        <div id="player-list-lobby" style="margin: 20px 0;"></div>
+        <button id="start-btn" class="btn-main" style="display:none" onclick="hostStart()">COMEÇAR JOGO</button>
     </div>
 
     <div id="screen-game" class="screen">
-        <div id="turn-banner">AGUARDANDO...</div>
-        <div id="display-tema" style="color: var(--primary); font-weight: bold; margin-bottom: 10px;"></div>
+        <div id="turn-banner">CARREGANDO...</div>
+        <div id="display-tema" style="color: var(--primary); font-size: 1.2rem; margin-bottom: 10px;"></div>
         
         <div id="choice-area" style="display:none; width:100%;">
-            <p>Escolha o desafio para <b id="target-player" style="color:var(--primary)">...</b>:</p>
-            <div id="choice-list"></div>
+            <p>Escolha uma pergunta para <b id="target-player" style="color:var(--primary)">...</b>:</p>
+            <div id="choice-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
         </div>
 
         <div id="play-area" style="display:none; width: 100%;">
-            <div id="question-text" style="background:#111; padding:20px; border-radius:15px; margin-bottom:15px; text-align: left; border-left: 5px solid var(--primary);"></div>
-            <div id="loading-ia" class="loading-ia">IA analisando... 🦆</div>
-            <input type="text" id="input-ans" placeholder="Sua resposta...">
-            <button id="btn-send" class="btn-ia" onclick="handleAnswer()">VERIFICAR</button>
+            <div id="question-text" style="background:#111; padding:20px; border-radius:15px; margin-bottom:15px; text-align: left; border-left: 6px solid var(--primary); font-size: 1.1rem;"></div>
+            <div id="loading-ia" class="loading-ia">A IA está lendo sua mente... 🦆</div>
+            <input type="text" id="input-ans" placeholder="Digite sua resposta aqui...">
+            <button id="btn-send" class="btn-ia" onclick="handleAnswer()">ENVIAR RESPOSTA</button>
         </div>
 
-        <div id="placar" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 20px; font-size: 0.8rem;"></div>
+        <div id="placar"></div>
     </div>
 
     <script>
+        // CONFIGURAÇÃO FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyBxkvXpN8eoLhzEJaGr6o1JNgU8CpdPiWc",
             authDomain: "esseemeuamigo-1f262.firebaseapp.com",
@@ -106,25 +115,36 @@
         let myData = { nick: '', roomCode: '', isOwner: false };
         let deckLocal = {};
 
+        // --- INTEGRAÇÃO IA GEMINI 3 ---
         async function validarComIA(pergunta, respostaCorreta, respostaJogador) {
-            const key = document.getElementById('api-key').value;
-            if(!key) return "ERRADO";
-            const prompt = `Pergunta: "${pergunta}". Resposta correta: "${respostaCorreta}". O jogador disse: "${respostaJogador}". Responda apenas CORRETO ou ERRADO baseado no sentido.`;
+            const key = document.getElementById('api-key').value.trim();
+            if(!key) { alert("API KEY não encontrada!"); return "ERRADO"; }
+
+            const promptText = `Atue como juiz de quiz. Pergunta: "${pergunta}". Resposta correta: "${respostaCorreta}". Jogador respondeu: "${respostaJogador}". Compare semanticamente. Se o sentido for igual, responda apenas "CORRETO". Se for diferente, responda "ERRADO".`;
+
             try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
-                    method: "POST", headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${key}`, {
+                    method: "POST",
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
                 });
                 const data = await response.json();
+                if(data.error) throw new Error(data.error.message);
                 return data.candidates[0].content.parts[0].text.trim().toUpperCase();
-            } catch (e) { return "ERRADO"; }
+            } catch (e) {
+                console.error("Erro IA:", e);
+                alert("Erro na IA: " + e.message);
+                return "ERRADO";
+            }
         }
 
+        // --- LÓGICA DE TELAS ---
         function goTo(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
         }
 
+        // --- PROCESSAR TXT ---
         document.getElementById('cards-file').addEventListener('change', (e) => {
             const reader = new FileReader();
             reader.onload = (ev) => {
@@ -135,14 +155,15 @@
                     if (!deckLocal[tema]) deckLocal[tema] = [];
                     deckLocal[tema].push({ q: m[2], a: m[3], c: m[4] });
                 }
-                alert("Cartas carregadas!");
+                alert("Perguntas carregadas com sucesso!");
             };
             reader.readAsText(e.target.files[0]);
         });
 
+        // --- SALA E LOBBY ---
         function logicCreateRoom() {
             const nick = document.getElementById('create-nick').value.trim();
-            if(!nick || Object.keys(deckLocal).length === 0) return alert("Falta apelido ou arquivo!");
+            if(!nick || Object.keys(deckLocal).length === 0) return alert("Nick e arquivo TXT são obrigatórios!");
             const code = Math.random().toString(36).substring(2, 7).toUpperCase();
             myData = { nick, roomCode: code, isOwner: true };
             db.ref('rooms/' + code).set({
@@ -153,9 +174,10 @@
         function logicJoinRoom() {
             const nick = document.getElementById('join-nick').value.trim();
             const code = document.getElementById('join-code').value.trim().toUpperCase();
+            if(!nick || !code) return alert("Preencha tudo!");
             db.ref('rooms/' + code).once('value', snapshot => {
                 const room = snapshot.val();
-                if(!room) return alert("Sala não existe!");
+                if(!room) return alert("Sala não encontrada!");
                 let pts = room.players || [];
                 pts.push({nick});
                 db.ref('rooms/' + code + '/players').set(pts).then(() => {
@@ -175,9 +197,14 @@
             });
         }
 
+        // --- ATUALIZAR INTERFACE ---
         function updateUI(room) {
+            const placarDiv = document.getElementById('placar');
+            placarDiv.innerHTML = room.players.map(p => `<div class="placar-item">${p.nick}: ${room.scores?.[p.nick] || 0}🦆</div>`).join('');
+
             if(room.status === 'waiting') {
                 document.getElementById('player-list-lobby').innerHTML = room.players.map(p => `<div>• ${p.nick}</div>`).join('');
+                return;
             }
             
             if(room.status === 'playing') {
@@ -187,41 +214,43 @@
                 const responder = room.players[room.turnIndex];
                 
                 if(room.phase === 'choosing') {
-                    document.getElementById('turn-banner').innerText = (chooser.nick === myData.nick) ? "SUA VEZ DE ESCOLHER!" : "ESCOLHENDO: " + chooser.nick;
-                    document.getElementById('turn-banner').className = (chooser.nick === myData.nick) ? "your-turn" : "others-turn";
                     document.getElementById('choice-area').style.display = 'block';
                     document.getElementById('play-area').style.display = 'none';
                     document.getElementById('target-player').innerText = responder.nick;
+                    document.getElementById('turn-banner').innerText = (chooser.nick === myData.nick) ? "SUA VEZ DE ESCOLHER!" : "ESCOLHENDO: " + chooser.nick;
+                    document.getElementById('turn-banner').className = (chooser.nick === myData.nick) ? "your-turn" : "others-turn";
                     
                     if(chooser.nick === myData.nick) {
                         document.getElementById('choice-list').innerHTML = room.options.map((opt, i) => 
                             `<button class="btn-choice" onclick="selectQuestion(${i})">${opt.q}</button>`
                         ).join('');
                     } else {
-                        document.getElementById('choice-list').innerHTML = "<p>Aguardando escolha...</p>";
+                        document.getElementById('choice-list').innerHTML = "<p>Aguardando o oponente selecionar...</p>";
                     }
                 } else {
-                    document.getElementById('turn-banner').innerText = (responder.nick === myData.nick) ? "SUA VEZ DE RESPONDER!" : "RESPONDENDO: " + responder.nick;
-                    document.getElementById('turn-banner').className = (responder.nick === myData.nick) ? "your-turn" : "others-turn";
                     document.getElementById('choice-area').style.display = 'none';
                     document.getElementById('play-area').style.display = 'block';
                     document.getElementById('display-tema').innerText = "TEMA: " + room.currentTema;
                     document.getElementById('question-text').innerText = room.currentCard.q;
+                    document.getElementById('turn-banner').innerText = (responder.nick === myData.nick) ? "SUA VEZ DE RESPONDER!" : "AGUARDANDO: " + responder.nick;
+                    document.getElementById('turn-banner').className = (responder.nick === myData.nick) ? "your-turn" : "others-turn";
                     document.getElementById('btn-send').disabled = (responder.nick !== myData.nick);
+                    document.getElementById('input-ans').disabled = (responder.nick !== myData.nick);
                 }
-
-                document.getElementById('placar').innerHTML = room.players.map(p => `<span>${p.nick}: ${room.scores?.[p.nick] || 0}🦆</span>`).join('');
             }
 
+            // MODAL
             document.getElementById('modal-result').style.display = room.modalOpen ? 'flex' : 'none';
             if(room.modalOpen) {
                 document.getElementById('res-status').innerText = room.modalData.status;
+                document.getElementById('res-status').style.color = room.modalData.status === "ACERTOU!" ? "var(--success)" : "var(--danger)";
                 document.getElementById('res-p-ans').innerText = room.modalData.pAns;
                 document.getElementById('res-real-ans').innerText = room.modalData.realAns;
                 document.getElementById('res-curiosidade').innerText = room.modalData.curio;
             }
         }
 
+        // --- LÓGICA DO JOGO ---
         function hostStart() {
             db.ref('rooms/' + myData.roomCode).once('value', snapshot => {
                 const room = snapshot.val();
@@ -253,19 +282,24 @@
         }
 
         async function handleAnswer() {
-            const ans = document.getElementById('input-ans').value;
+            const input = document.getElementById('input-ans');
+            const ans = input.value.trim();
             if(!ans) return;
+
             document.getElementById('loading-ia').style.display = 'block';
-            
+            document.getElementById('btn-send').disabled = true;
+
             const roomSnap = await db.ref('rooms/' + myData.roomCode).once('value');
             const room = roomSnap.val();
+            
             const resultIA = await validarComIA(room.currentCard.q, room.currentCard.a, ans);
             
             document.getElementById('loading-ia').style.display = 'none';
-            document.getElementById('input-ans').value = "";
+            input.value = "";
 
             if(resultIA === "ERRADO") {
-                room.scores[room.players[room.turnIndex].nick]++;
+                const nickResponder = room.players[room.turnIndex].nick;
+                room.scores[nickResponder] = (room.scores[nickResponder] || 0) + 1;
             }
 
             room.modalOpen = true;
@@ -274,9 +308,8 @@
                 pAns: ans, realAns: room.currentCard.a, curio: room.currentCard.c
             };
 
-            // Quem respondeu vira o próximo Escolhedor
+            // Rotatividade: Quem respondeu agora ESCOLHE para o próximo
             room.chooserIndex = room.turnIndex;
-            // O próximo da fila será o próximo a responder
             room.turnIndex = (room.turnIndex + 1) % room.players.length;
             
             generateOptions(room);
