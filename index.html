@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EU SABO!</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    
+    <style>
+        :root {
+            --primary: #ffcc00; --secondary: #333; --danger: #ff4444;
+            --success: #00c851; --bg: #1a1a1a; --card: #2a2a2a;
+        }
+        body { margin: 0; font-family: 'Arial Black', sans-serif; background: var(--bg); color: white; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        .screen { display: none; flex-direction: column; align-items: center; width: 95%; max-width: 550px; background: var(--card); padding: 25px; border-radius: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); text-align: center; max-height: 90vh; overflow-y: auto; }
+        .active { display: flex; }
+        h1 { font-size: 2.5rem; color: var(--primary); text-shadow: 3px 3px 0 var(--secondary); }
+        button { padding: 12px; font-size: 1rem; font-weight: bold; cursor: pointer; border: none; border-radius: 12px; transition: 0.2s; text-transform: uppercase; width: 100%; margin-bottom: 10px; }
+        .btn-main { background: var(--primary); color: #000; }
+        .btn-ia { background: #6e45e2; color: white; }
+        input { padding: 15px; margin: 10px 0; border-radius: 12px; border: 3px solid #444; background: #111; color: white; width: 100%; text-align: center; font-size: 1.2rem; box-sizing: border-box; }
+        #turn-banner { width: 100%; padding: 10px; border-radius: 10px; margin-bottom: 15px; font-weight: bold; color: #000; }
+        .your-turn { background: var(--success); }
+        .others-turn { background: var(--primary); }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100; justify-content: center; align-items: center; }
+        .reveal-card { background: var(--card); border: 4px solid var(--primary); padding: 25px; border-radius: 25px; width: 80%; }
+        .loading-ia { color: var(--primary); font-style: italic; margin: 10px 0; display: none; }
+    </style>
+</head>
+<body>
+
+    <div id="modal-result" class="modal">
+        <div class="reveal-card">
+            <h2 id="res-status">ANALISANDO...</h2>
+            <p>Resposta do Jogador: <br><b id="res-p-ans"></b></p>
+            <p>Resposta Correta: <br><b id="res-real-ans" style="color: var(--primary)"></b></p>
+            <p id="res-curiosidade" style="font-size: 0.8rem; background: #111; padding: 10px; border-radius: 10px;"></p>
+            <button class="btn-main" onclick="closeModal()">PRÓXIMA RODADA</button>
+        </div>
+    </div>
+
+    <div id="screen-menu" class="screen active">
+        <h1>EU SABO!<span style="font-size: 0.8rem; display: block;">(IA EDITION)</span></h1>
+        <input type="password" id="api-key" placeholder="Cole sua API KEY do Gemini aqui" style="font-size: 0.8rem;">
+        <button class="btn-main" onclick="goTo('screen-create')">CRIAR SALA</button>
+        <button class="btn-main" onclick="goTo('screen-join')">ENTRAR NA SALA</button>
+    </div>
+
+    <div id="screen-create" class="screen">
+        <h2>CRIAR</h2>
+        <input type="text" id="create-nick" placeholder="Seu Apelido">
+        <p style="font-size: 0.7rem;">Carregue o TXT de perguntas</p>
+        <input type="file" id="cards-file" accept=".txt">
+        <button class="btn-main" onclick="logicCreateRoom()">GERAR SALA</button>
+    </div>
+
+    <div id="screen-join" class="screen">
+        <h2>ENTRAR</h2>
+        <input type="text" id="join-nick" placeholder="Seu Apelido">
+        <input type="text" id="join-code" placeholder="Código da Sala">
+        <button class="btn-main" onclick="logicJoinRoom()">ENTRAR</button>
+    </div>
+
+    <div id="screen-lobby" class="screen">
+        <h2>LOBBY</h2>
+        <p>CÓDIGO: <b id="lobby-room-code" style="color:var(--primary);">---</b></p>
+        <div id="player-list-lobby"></div>
+        <button id="start-btn" class="btn-main" style="display:none" onclick="hostStart()">COMEÇAR</button>
+    </div>
+
+    <div id="screen-game" class="screen">
+        <div id="turn-banner">AGUARDANDO...</div>
+        <div id="display-tema" style="color: var(--primary); font-weight: bold;"></div>
+        
+        <div id="play-area" style="width: 100%;">
+            <div id="question-text" style="background:#111; padding:20px; border-radius:15px; margin: 15px 0; text-align: left; border-left: 5px solid var(--primary);"></div>
+            <div id="loading-ia" class="loading-ia">IA está analisando sua resposta... 🦆</div>
+            <input type="text" id="input-ans" placeholder="Escreva sua resposta...">
+            <button id="btn-send" class="btn-ia" onclick="handleAnswer()">ENVIAR RESPOSTA</button>
+        </div>
+
+        <div id="placar" style="display: flex; gap: 10px; margin-top: 20px; font-size: 0.8rem;"></div>
+    </div>
+
+    <script>
+        // CONFIGURAÇÃO FIREBASE (Sua config atual)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBxkvXpN8eoLhzEJaGr6o1JNgU8CpdPiWc",
+            authDomain: "esseemeuamigo-1f262.firebaseapp.com",
+            databaseURL: "https://esseemeuamigo-1f262-default-rtdb.firebaseio.com",
+            projectId: "esseemeuamigo-1f262",
+            storageBucket: "esseemeuamigo-1f262.firebasestorage.app",
+            messagingSenderId: "611527572474",
+            appId: "1:611527572474:web:5c5182a8a68a84d2f7c243"
+        };
+        
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        let myData = { nick: '', roomCode: '', isOwner: false };
+        let deckLocal = {};
+
+        // --- LÓGICA DA IA (GEMINI) ---
+        async function validarComIA(pergunta, respostaCorreta, respostaJogador) {
+            const key = document.getElementById('api-key').value;
+            if(!key) { alert("Faltou a API KEY do Gemini no menu!"); return "ERRADO"; }
+
+            const prompt = `Atue como juiz de um jogo. 
+            Pergunta: "${pergunta}"
+            Resposta correta esperada: "${respostaCorreta}"
+            O jogador respondeu: "${respostaJogador}"
+            
+            Compare semanticamente. Se o jogador acertou ou disse algo muito próximo, responda apenas "CORRETO". Se ele errou, responda apenas "ERRADO".`;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
+                    method: "POST",
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                const data = await response.json();
+                return data.candidates[0].content.parts[0].text.trim().toUpperCase();
+            } catch (e) {
+                console.error(e);
+                return "ERRADO";
+            }
+        }
+
+        // --- NAVEGAÇÃO ---
+        function goTo(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        // --- CARREGAR CARTAS ---
+        document.getElementById('cards-file').addEventListener('change', (e) => {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const regex = /\((.*?)\)\s*(.*?)\s*\[(.*?)\]\s*"(.*?)"/g;
+                let m; deckLocal = {};
+                while ((m = regex.exec(ev.target.result)) !== null) {
+                    const tema = m[1].toUpperCase();
+                    if (!deckLocal[tema]) deckLocal[tema] = [];
+                    deckLocal[tema].push({ q: m[2], a: m[3], c: m[4] });
+                }
+                alert("Cartas de texto carregadas!");
+            };
+            reader.readAsText(e.target.files[0]);
+        });
+
+        // --- FIREBASE OPS ---
+        function logicCreateRoom() {
+            const nick = document.getElementById('create-nick').value.trim();
+            if(!nick || Object.keys(deckLocal).length === 0) return alert("Nickname e TXT!");
+            const code = Math.random().toString(36).substring(2, 7).toUpperCase();
+            myData = { nick, roomCode: code, isOwner: true };
+            db.ref('rooms/' + code).set({
+                status: 'waiting', players: [{nick}], deck: deckLocal, turnIndex: 0, phase: 'playing', modalOpen: false
+            }).then(() => listenToRoom(code));
+        }
+
+        function logicJoinRoom() {
+            const nick = document.getElementById('join-nick').value.trim();
+            const code = document.getElementById('join-code').value.trim().toUpperCase();
+            db.ref('rooms/' + code).once('value', snapshot => {
+                const room = snapshot.val();
+                if(!room) return alert("Sala não existe!");
+                let pts = room.players || [];
+                pts.push({nick});
+                db.ref('rooms/' + code + '/players').set(pts).then(() => {
+                    myData = { nick, roomCode: code, isOwner: false };
+                    listenToRoom(code);
+                });
+            });
+        }
+
+        function listenToRoom(code) {
+            document.getElementById('lobby-room-code').innerText = code;
+            if(myData.isOwner) document.getElementById('start-btn').style.display = 'block';
+            goTo('screen-lobby');
+            db.ref('rooms/' + code).on('value', snapshot => {
+                const room = snapshot.val();
+                if(room) updateUI(room);
+            });
+        }
+
+        function updateUI(room) {
+            if(room.status === 'waiting') {
+                document.getElementById('player-list-lobby').innerHTML = room.players.map(p => `<div>• ${p.nick}</div>`).join('');
+            }
+            
+            if(room.status === 'playing') {
+                if(!document.getElementById('screen-game').classList.contains('active')) goTo('screen-game');
+                
+                const isMyTurn = room.players[room.turnIndex].nick === myData.nick;
+                document.getElementById('turn-banner').innerText = isMyTurn ? "SUA VEZ!" : "VEZ DE " + room.players[room.turnIndex].nick;
+                document.getElementById('turn-banner').className = isMyTurn ? "your-turn" : "others-turn";
+                
+                document.getElementById('display-tema').innerText = room.currentTema;
+                document.getElementById('question-text').innerText = room.currentCard.q;
+                
+                document.getElementById('input-ans').disabled = !isMyTurn;
+                document.getElementById('btn-send').disabled = !isMyTurn;
+
+                document.getElementById('placar').innerHTML = room.players.map(p => `<span>${p.nick}: ${room.scores?.[p.nick] || 0}🦆</span>`).join('');
+            }
+
+            const modal = document.getElementById('modal-result');
+            if(room.modalOpen) {
+                document.getElementById('res-status').innerText = room.modalData.status;
+                document.getElementById('res-p-ans').innerText = room.modalData.pAns;
+                document.getElementById('res-real-ans').innerText = room.modalData.realAns;
+                document.getElementById('res-curiosidade').innerText = room.modalData.curio;
+                modal.style.display = 'flex';
+            } else { modal.style.display = 'none'; }
+        }
+
+        function hostStart() {
+            db.ref('rooms/' + myData.roomCode).once('value', snapshot => {
+                const room = snapshot.val();
+                const temas = Object.keys(room.deck);
+                const tema = temas[Math.floor(Math.random() * temas.length)];
+                const card = room.deck[tema][Math.floor(Math.random() * room.deck[tema].length)];
+                
+                room.status = 'playing';
+                room.scores = {};
+                room.players.forEach(p => room.scores[p.nick] = 0);
+                room.currentTema = tema;
+                room.currentCard = card;
+                room.turnIndex = 0;
+                db.ref('rooms/' + myData.roomCode).set(room);
+            });
+        }
+
+        async function handleAnswer() {
+            const ans = document.getElementById('input-ans').value;
+            if(!ans) return;
+            
+            document.getElementById('loading-ia').style.display = 'block';
+            document.getElementById('btn-send').disabled = true;
+
+            const roomSnap = await db.ref('rooms/' + myData.roomCode).once('value');
+            const room = roomSnap.val();
+            
+            const resultIA = await validarComIA(room.currentCard.q, room.currentCard.a, ans);
+            
+            document.getElementById('loading-ia').style.display = 'none';
+            document.getElementById('input-ans').value = "";
+
+            // Atualiza placar
+            if(resultIA === "ERRADO") {
+                room.scores[myData.nick] = (room.scores[myData.nick] || 0) + 1;
+            }
+
+            // Prepara Modal
+            room.modalOpen = true;
+            room.modalData = {
+                status: resultIA === "CORRETO" ? "ACERTOU!" : "ERROU!",
+                pAns: ans,
+                realAns: room.currentCard.a,
+                curio: room.currentCard.c
+            };
+
+            // Prepara próxima rodada
+            const temas = Object.keys(room.deck);
+            room.currentTema = temas[Math.floor(Math.random() * temas.length)];
+            room.currentCard = room.deck[room.currentTema][Math.floor(Math.random() * room.deck[room.currentTema].length)];
+            room.turnIndex = (room.turnIndex + 1) % room.players.length;
+
+            db.ref('rooms/' + myData.roomCode).set(room);
+        }
+
+        function closeModal() {
+            db.ref('rooms/' + myData.roomCode + '/modalOpen').set(false);
+        }
+    </script>
+</body>
+</html>
