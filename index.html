@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EU SABO!</title>
+    <title>EU SABO!!!</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
@@ -20,6 +20,8 @@
         button { padding: 12px; font-size: 1rem; font-weight: bold; cursor: pointer; border: none; border-radius: 12px; transition: 0.2s; text-transform: uppercase; width: 100%; margin-bottom: 10px; }
         .btn-main { background: var(--primary); color: #000; }
         .btn-ia { background: #6e45e2; color: white; }
+        .btn-choice { background: #444; color: white; text-align: left; font-size: 0.8rem; font-family: 'Arial', sans-serif; }
+        .btn-choice:hover { background: var(--primary); color: #000; }
         input { padding: 15px; margin: 10px 0; border-radius: 12px; border: 3px solid #444; background: #111; color: white; width: 100%; text-align: center; font-size: 1.2rem; box-sizing: border-box; }
         #turn-banner { width: 100%; padding: 10px; border-radius: 10px; margin-bottom: 15px; font-weight: bold; color: #000; }
         .your-turn { background: var(--success); }
@@ -37,13 +39,13 @@
             <p>Resposta do Jogador: <br><b id="res-p-ans"></b></p>
             <p>Resposta Correta: <br><b id="res-real-ans" style="color: var(--primary)"></b></p>
             <p id="res-curiosidade" style="font-size: 0.8rem; background: #111; padding: 10px; border-radius: 10px;"></p>
-            <button class="btn-main" onclick="closeModal()">PRÓXIMA RODADA</button>
+            <button class="btn-main" onclick="closeModal()">OK, PRÓXIMO!</button>
         </div>
     </div>
 
     <div id="screen-menu" class="screen active">
         <h1>EU SABO!<span style="font-size: 0.8rem; display: block;">(IA EDITION)</span></h1>
-        <input type="password" id="api-key" placeholder="Cole sua API KEY do Gemini aqui" style="font-size: 0.8rem;">
+        <input type="password" id="api-key" placeholder="Cole sua API KEY do Gemini aqui">
         <button class="btn-main" onclick="goTo('screen-create')">CRIAR SALA</button>
         <button class="btn-main" onclick="goTo('screen-join')">ENTRAR NA SALA</button>
     </div>
@@ -51,7 +53,6 @@
     <div id="screen-create" class="screen">
         <h2>CRIAR</h2>
         <input type="text" id="create-nick" placeholder="Seu Apelido">
-        <p style="font-size: 0.7rem;">Carregue o TXT de perguntas</p>
         <input type="file" id="cards-file" accept=".txt">
         <button class="btn-main" onclick="logicCreateRoom()">GERAR SALA</button>
     </div>
@@ -59,7 +60,7 @@
     <div id="screen-join" class="screen">
         <h2>ENTRAR</h2>
         <input type="text" id="join-nick" placeholder="Seu Apelido">
-        <input type="text" id="join-code" placeholder="Código da Sala">
+        <input type="text" id="join-code" placeholder="Código">
         <button class="btn-main" onclick="logicJoinRoom()">ENTRAR</button>
     </div>
 
@@ -72,20 +73,24 @@
 
     <div id="screen-game" class="screen">
         <div id="turn-banner">AGUARDANDO...</div>
-        <div id="display-tema" style="color: var(--primary); font-weight: bold;"></div>
+        <div id="display-tema" style="color: var(--primary); font-weight: bold; margin-bottom: 10px;"></div>
         
-        <div id="play-area" style="width: 100%;">
-            <div id="question-text" style="background:#111; padding:20px; border-radius:15px; margin: 15px 0; text-align: left; border-left: 5px solid var(--primary);"></div>
-            <div id="loading-ia" class="loading-ia">IA está analisando sua resposta... 🦆</div>
-            <input type="text" id="input-ans" placeholder="Escreva sua resposta...">
-            <button id="btn-send" class="btn-ia" onclick="handleAnswer()">ENVIAR RESPOSTA</button>
+        <div id="choice-area" style="display:none; width:100%;">
+            <p>Escolha o desafio para <b id="target-player" style="color:var(--primary)">...</b>:</p>
+            <div id="choice-list"></div>
         </div>
 
-        <div id="placar" style="display: flex; gap: 10px; margin-top: 20px; font-size: 0.8rem;"></div>
+        <div id="play-area" style="display:none; width: 100%;">
+            <div id="question-text" style="background:#111; padding:20px; border-radius:15px; margin-bottom:15px; text-align: left; border-left: 5px solid var(--primary);"></div>
+            <div id="loading-ia" class="loading-ia">IA analisando... 🦆</div>
+            <input type="text" id="input-ans" placeholder="Sua resposta...">
+            <button id="btn-send" class="btn-ia" onclick="handleAnswer()">VERIFICAR</button>
+        </div>
+
+        <div id="placar" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 20px; font-size: 0.8rem;"></div>
     </div>
 
     <script>
-        // CONFIGURAÇÃO FIREBASE (Sua config atual)
         const firebaseConfig = {
             apiKey: "AIzaSyBxkvXpN8eoLhzEJaGr6o1JNgU8CpdPiWc",
             authDomain: "esseemeuamigo-1f262.firebaseapp.com",
@@ -101,39 +106,25 @@
         let myData = { nick: '', roomCode: '', isOwner: false };
         let deckLocal = {};
 
-        // --- LÓGICA DA IA (GEMINI) ---
         async function validarComIA(pergunta, respostaCorreta, respostaJogador) {
             const key = document.getElementById('api-key').value;
-            if(!key) { alert("Faltou a API KEY do Gemini no menu!"); return "ERRADO"; }
-
-            const prompt = `Atue como juiz de um jogo. 
-            Pergunta: "${pergunta}"
-            Resposta correta esperada: "${respostaCorreta}"
-            O jogador respondeu: "${respostaJogador}"
-            
-            Compare semanticamente. Se o jogador acertou ou disse algo muito próximo, responda apenas "CORRETO". Se ele errou, responda apenas "ERRADO".`;
-
+            if(!key) return "ERRADO";
+            const prompt = `Pergunta: "${pergunta}". Resposta correta: "${respostaCorreta}". O jogador disse: "${respostaJogador}". Responda apenas CORRETO ou ERRADO baseado no sentido.`;
             try {
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
-                    method: "POST",
-                    headers: { 'Content-Type': 'application/json' },
+                    method: "POST", headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
                 });
                 const data = await response.json();
                 return data.candidates[0].content.parts[0].text.trim().toUpperCase();
-            } catch (e) {
-                console.error(e);
-                return "ERRADO";
-            }
+            } catch (e) { return "ERRADO"; }
         }
 
-        // --- NAVEGAÇÃO ---
         function goTo(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
         }
 
-        // --- CARREGAR CARTAS ---
         document.getElementById('cards-file').addEventListener('change', (e) => {
             const reader = new FileReader();
             reader.onload = (ev) => {
@@ -144,19 +135,18 @@
                     if (!deckLocal[tema]) deckLocal[tema] = [];
                     deckLocal[tema].push({ q: m[2], a: m[3], c: m[4] });
                 }
-                alert("Cartas de texto carregadas!");
+                alert("Cartas carregadas!");
             };
             reader.readAsText(e.target.files[0]);
         });
 
-        // --- FIREBASE OPS ---
         function logicCreateRoom() {
             const nick = document.getElementById('create-nick').value.trim();
-            if(!nick || Object.keys(deckLocal).length === 0) return alert("Nickname e TXT!");
+            if(!nick || Object.keys(deckLocal).length === 0) return alert("Falta apelido ou arquivo!");
             const code = Math.random().toString(36).substring(2, 7).toUpperCase();
             myData = { nick, roomCode: code, isOwner: true };
             db.ref('rooms/' + code).set({
-                status: 'waiting', players: [{nick}], deck: deckLocal, turnIndex: 0, phase: 'playing', modalOpen: false
+                status: 'waiting', players: [{nick}], deck: deckLocal, turnIndex: 0, chooserIndex: 0, phase: 'choosing', modalOpen: false
             }).then(() => listenToRoom(code));
         }
 
@@ -193,42 +183,71 @@
             if(room.status === 'playing') {
                 if(!document.getElementById('screen-game').classList.contains('active')) goTo('screen-game');
                 
-                const isMyTurn = room.players[room.turnIndex].nick === myData.nick;
-                document.getElementById('turn-banner').innerText = isMyTurn ? "SUA VEZ!" : "VEZ DE " + room.players[room.turnIndex].nick;
-                document.getElementById('turn-banner').className = isMyTurn ? "your-turn" : "others-turn";
+                const chooser = room.players[room.chooserIndex];
+                const responder = room.players[room.turnIndex];
                 
-                document.getElementById('display-tema').innerText = room.currentTema;
-                document.getElementById('question-text').innerText = room.currentCard.q;
-                
-                document.getElementById('input-ans').disabled = !isMyTurn;
-                document.getElementById('btn-send').disabled = !isMyTurn;
+                if(room.phase === 'choosing') {
+                    document.getElementById('turn-banner').innerText = (chooser.nick === myData.nick) ? "SUA VEZ DE ESCOLHER!" : "ESCOLHENDO: " + chooser.nick;
+                    document.getElementById('turn-banner').className = (chooser.nick === myData.nick) ? "your-turn" : "others-turn";
+                    document.getElementById('choice-area').style.display = 'block';
+                    document.getElementById('play-area').style.display = 'none';
+                    document.getElementById('target-player').innerText = responder.nick;
+                    
+                    if(chooser.nick === myData.nick) {
+                        document.getElementById('choice-list').innerHTML = room.options.map((opt, i) => 
+                            `<button class="btn-choice" onclick="selectQuestion(${i})">${opt.q}</button>`
+                        ).join('');
+                    } else {
+                        document.getElementById('choice-list').innerHTML = "<p>Aguardando escolha...</p>";
+                    }
+                } else {
+                    document.getElementById('turn-banner').innerText = (responder.nick === myData.nick) ? "SUA VEZ DE RESPONDER!" : "RESPONDENDO: " + responder.nick;
+                    document.getElementById('turn-banner').className = (responder.nick === myData.nick) ? "your-turn" : "others-turn";
+                    document.getElementById('choice-area').style.display = 'none';
+                    document.getElementById('play-area').style.display = 'block';
+                    document.getElementById('display-tema').innerText = "TEMA: " + room.currentTema;
+                    document.getElementById('question-text').innerText = room.currentCard.q;
+                    document.getElementById('btn-send').disabled = (responder.nick !== myData.nick);
+                }
 
                 document.getElementById('placar').innerHTML = room.players.map(p => `<span>${p.nick}: ${room.scores?.[p.nick] || 0}🦆</span>`).join('');
             }
 
-            const modal = document.getElementById('modal-result');
+            document.getElementById('modal-result').style.display = room.modalOpen ? 'flex' : 'none';
             if(room.modalOpen) {
                 document.getElementById('res-status').innerText = room.modalData.status;
                 document.getElementById('res-p-ans').innerText = room.modalData.pAns;
                 document.getElementById('res-real-ans').innerText = room.modalData.realAns;
                 document.getElementById('res-curiosidade').innerText = room.modalData.curio;
-                modal.style.display = 'flex';
-            } else { modal.style.display = 'none'; }
+            }
         }
 
         function hostStart() {
             db.ref('rooms/' + myData.roomCode).once('value', snapshot => {
                 const room = snapshot.val();
-                const temas = Object.keys(room.deck);
-                const tema = temas[Math.floor(Math.random() * temas.length)];
-                const card = room.deck[tema][Math.floor(Math.random() * room.deck[tema].length)];
-                
                 room.status = 'playing';
                 room.scores = {};
                 room.players.forEach(p => room.scores[p.nick] = 0);
-                room.currentTema = tema;
-                room.currentCard = card;
-                room.turnIndex = 0;
+                room.chooserIndex = Math.floor(Math.random() * room.players.length);
+                room.turnIndex = (room.chooserIndex + 1) % room.players.length;
+                generateOptions(room);
+                db.ref('rooms/' + myData.roomCode).set(room);
+            });
+        }
+
+        function generateOptions(room) {
+            const temas = Object.keys(room.deck);
+            const tema = temas[Math.floor(Math.random() * temas.length)];
+            room.currentTema = tema;
+            room.options = room.deck[tema].sort(() => 0.5 - Math.random()).slice(0, 5);
+            room.phase = 'choosing';
+        }
+
+        function selectQuestion(idx) {
+            db.ref('rooms/' + myData.roomCode).once('value', snapshot => {
+                const room = snapshot.val();
+                room.currentCard = room.options[idx];
+                room.phase = 'playing';
                 db.ref('rooms/' + myData.roomCode).set(room);
             });
         }
@@ -236,38 +255,31 @@
         async function handleAnswer() {
             const ans = document.getElementById('input-ans').value;
             if(!ans) return;
-            
             document.getElementById('loading-ia').style.display = 'block';
-            document.getElementById('btn-send').disabled = true;
-
+            
             const roomSnap = await db.ref('rooms/' + myData.roomCode).once('value');
             const room = roomSnap.val();
-            
             const resultIA = await validarComIA(room.currentCard.q, room.currentCard.a, ans);
             
             document.getElementById('loading-ia').style.display = 'none';
             document.getElementById('input-ans').value = "";
 
-            // Atualiza placar
             if(resultIA === "ERRADO") {
-                room.scores[myData.nick] = (room.scores[myData.nick] || 0) + 1;
+                room.scores[room.players[room.turnIndex].nick]++;
             }
 
-            // Prepara Modal
             room.modalOpen = true;
             room.modalData = {
                 status: resultIA === "CORRETO" ? "ACERTOU!" : "ERROU!",
-                pAns: ans,
-                realAns: room.currentCard.a,
-                curio: room.currentCard.c
+                pAns: ans, realAns: room.currentCard.a, curio: room.currentCard.c
             };
 
-            // Prepara próxima rodada
-            const temas = Object.keys(room.deck);
-            room.currentTema = temas[Math.floor(Math.random() * temas.length)];
-            room.currentCard = room.deck[room.currentTema][Math.floor(Math.random() * room.deck[room.currentTema].length)];
+            // Quem respondeu vira o próximo Escolhedor
+            room.chooserIndex = room.turnIndex;
+            // O próximo da fila será o próximo a responder
             room.turnIndex = (room.turnIndex + 1) % room.players.length;
-
+            
+            generateOptions(room);
             db.ref('rooms/' + myData.roomCode).set(room);
         }
 
